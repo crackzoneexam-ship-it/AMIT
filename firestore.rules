@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidProfile(data) {
+      return data.keys().hasAll(['uid', 'playerId', 'name', 'avatar', 'coins', 'totalGames', 'wins', 'losses', 'rank'])
+        && data.keys().hasOnly(['uid', 'playerId', 'name', 'avatar', 'coins', 'totalGames', 'wins', 'losses', 'rank', 'updatedAt'])
+        && data.uid is string && data.uid == request.auth.uid
+        && data.playerId is string && data.playerId.size() >= 4 && data.playerId.size() <= 24
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 20
+        && data.avatar is string && data.avatar.size() >= 1 && data.avatar.size() <= 32
+        && data.coins is number && data.totalGames is number && data.wins is number && data.losses is number && data.rank is number;
+    }
+
+    // Private PII user record: owner-only read, no client score mutations
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId
+        && incoming().keys().hasAll(['uid', 'playerId', 'authProvider', 'createdAt'])
+        && incoming().keys().hasOnly(['uid', 'playerId', 'authProvider', 'createdAt'])
+        && incoming().uid == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update, delete: if isAdmin();
+    }
+
+    // Profiles: public read, owner can only edit display name & avatar (never stats/coins/wins)
+    match /profiles/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId
+        && isValidProfile(incoming())
+        && incoming().coins == 500
+        && incoming().totalGames == 0
+        && incoming().wins == 0
+        && incoming().losses == 0;
+      allow update: if isSignedIn() && isValidId(userId) && isValidProfile(incoming()) && (
+        isAdmin() || (
+          request.auth.uid == userId
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'updatedAt'])
+          && incoming().coins == existing().coins
+          && incoming().wins == existing().wins
+          && incoming().losses == existing().losses
+          && incoming().totalGames == existing().totalGames
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // GameRooms, ActiveMatches, MatchHistory, Leaderboard: server/admin authoritative writes only
+    match /gameRooms/{roomCode} {
+      allow get: if isSignedIn() && roomCode.matches('^[A-Z0-9]{6}$');
+      allow write: if isAdmin();
+    }
+
+    match /activeMatches/{matchId} {
+      allow get: if isSignedIn() && isValidId(matchId) && request.auth.uid in existing().participantUids;
+      allow write: if isAdmin();
+    }
+
+    match /matchHistory/{matchId} {
+      allow get: if isSignedIn() && isValidId(matchId);
+      allow list: if isSignedIn() && request.auth.uid in resource.data.participantUids;
+      allow write: if isAdmin();
+    }
+
+    match /leaderboard/{userId} {
+      allow get, list: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /gameSettings/{docId} {
+      allow get: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

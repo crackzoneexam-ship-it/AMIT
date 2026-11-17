@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated X Ludo account identity and role metadata.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "playerId": { "type": "string", "minLength": 4, "maxLength": 24 },
+        "authProvider": { "type": "string", "enum": ["guest", "google"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "playerId", "authProvider", "createdAt"]
+    },
+    "Profile": {
+      "title": "Profile",
+      "description": "Public player profile and server-verified statistics.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "playerId": { "type": "string", "minLength": 4, "maxLength": 24 },
+        "name": { "type": "string", "minLength": 2, "maxLength": 20 },
+        "avatar": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "coins": { "type": "number" },
+        "totalGames": { "type": "number" },
+        "wins": { "type": "number" },
+        "losses": { "type": "number" },
+        "rank": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "playerId", "name", "avatar", "coins", "totalGames", "wins", "losses", "rank"]
+    },
+    "GameRoom": {
+      "title": "GameRoom",
+      "description": "Private or matchmaking Ludo room waiting lobby.",
+      "type": "object",
+      "properties": {
+        "roomCode": { "type": "string", "minLength": 6, "maxLength": 6, "pattern": "^[A-Z0-9]{6}$" },
+        "hostUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "maxPlayers": { "type": "number" },
+        "status": { "type": "string", "enum": ["waiting", "in_match", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomCode", "hostUid", "maxPlayers", "status", "createdAt"]
+    },
+    "ActiveMatch": {
+      "title": "ActiveMatch",
+      "description": "Server-authoritative active Ludo match state.",
+      "type": "object",
+      "properties": {
+        "matchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "mode": { "type": "string", "enum": ["online", "private"] },
+        "phase": { "type": "string", "enum": ["ROLL", "MOVE", "FINISHED"] },
+        "currentTurnIndex": { "type": "number" },
+        "winnerColor": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["matchId", "mode", "phase", "currentTurnIndex", "updatedAt"]
+    },
+    "MatchHistory": {
+      "title": "MatchHistory",
+      "description": "Immutable verified completed match record.",
+      "type": "object",
+      "properties": {
+        "matchId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "winnerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "verified": { "type": "boolean" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["matchId", "winnerUid", "verified", "completedAt"]
+    },
+    "Leaderboard": {
+      "title": "Leaderboard",
+      "description": "Server-computed player ranking snapshot.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "wins": { "type": "number" },
+        "totalGames": { "type": "number" },
+        "rank": { "type": "number" }
+      },
+      "required": ["uid", "wins", "totalGames", "rank"]
+    },
+    "GameSettings": {
+      "title": "GameSettings",
+      "description": "Admin-managed Ludo rule variations.",
+      "type": "object",
+      "properties": {
+        "requireSixToExit": { "type": "boolean" },
+        "threeSixesRule": { "type": "string", "enum": ["forfeit", "none"] },
+        "turnTimeoutSeconds": { "type": "number" }
+      },
+      "required": ["requireSixToExit", "threeSixesRule", "turnTimeoutSeconds"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": { "$ref": "#/entities/User" }, "description": "Private user account records" },
+    "/profiles/{userId}": { "schema": { "$ref": "#/entities/Profile" }, "description": "Public player profile and verified stats" },
+    "/gameRooms/{roomCode}": { "schema": { "$ref": "#/entities/GameRoom" }, "description": "Private room lobbies" },
+    "/activeMatches/{matchId}": { "schema": { "$ref": "#/entities/ActiveMatch" }, "description": "Authoritative match states" },
+    "/matchHistory/{matchId}": { "schema": { "$ref": "#/entities/MatchHistory" }, "description": "Verified completed matches" },
+    "/leaderboard/{userId}": { "schema": { "$ref": "#/entities/Leaderboard" }, "description": "Server-maintained leaderboard entries" },
+    "/gameSettings/{docId}": { "schema": { "$ref": "#/entities/GameSettings" }, "description": "Admin-only game rules configuration" }
+  }
+}

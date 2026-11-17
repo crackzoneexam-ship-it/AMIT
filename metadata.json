@@ -1,0 +1,8 @@
+{
+  "name": "X Ludo",
+  "description": "Authentic Indian Classic Ludo with AI opponents, server-authoritative WebSocket multiplayer, private rooms, and Capacitor Android packaging.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
